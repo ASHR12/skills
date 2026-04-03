@@ -18,7 +18,6 @@
         --text: #fafaf9;
         --text-dim: #a8a29e;
       }
-
       * {
         box-sizing: border-box;
         margin: 0;
@@ -26,7 +25,6 @@
         user-select: none;
         -webkit-tap-highlight-color: transparent;
       }
-
       body {
         font-family: "DM Sans", sans-serif;
         background: linear-gradient(160deg, #1c1917 0%, #0c0a09 50%, #1a0f00 100%);
@@ -37,7 +35,6 @@
         color: var(--text);
         overflow: hidden;
       }
-
       .player {
         width: 360px;
         background: var(--surface);
@@ -53,12 +50,10 @@
         align-items: center;
         animation: slideUp 0.6s ease-out;
       }
-
       @keyframes slideUp {
         from { opacity: 0; transform: translateY(30px); }
         to { opacity: 1; transform: translateY(0); }
       }
-
       .viz {
         width: 100%;
         height: 80px;
@@ -70,41 +65,25 @@
         opacity: 0.4;
         transition: opacity 0.4s;
       }
-
       .playing .viz { opacity: 1; }
-
       .viz-bar {
         width: 4px;
         border-radius: 2px;
         background: var(--amber);
         height: 8px;
-        transition: height 0.15s ease;
       }
-
       .playing .viz-bar {
         animation: vizBounce 0.8s ease-in-out infinite alternate;
       }
-
       @keyframes vizBounce {
         0% { height: 8px; opacity: 0.4; }
         100% { height: var(--bar-h, 60px); opacity: 1; }
       }
-
-      .loading .viz-bar {
-        animation: loadPulse 1.4s ease-in-out infinite;
-      }
-
-      @keyframes loadPulse {
-        0%, 100% { height: 8px; opacity: 0.3; }
-        50% { height: var(--bar-h, 40px); opacity: 0.7; }
-      }
-
       .info {
         text-align: center;
         margin-bottom: 20px;
         width: 100%;
       }
-
       .info h1 {
         font-size: 18px;
         font-weight: 700;
@@ -115,7 +94,6 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
-
       .info .badge {
         display: inline-block;
         font-size: 11px;
@@ -126,7 +104,6 @@
         border-radius: 20px;
         letter-spacing: 0.5px;
       }
-
       .lyrics-box {
         width: 100%;
         max-height: 100px;
@@ -142,14 +119,8 @@
         scrollbar-width: thin;
         scrollbar-color: var(--amber) transparent;
       }
-
       .lyrics-box:empty { display: none; }
-
-      .progress-wrap {
-        width: 100%;
-        margin-bottom: 20px;
-      }
-
+      .progress-wrap { width: 100%; margin-bottom: 20px; }
       .progress-track {
         width: 100%;
         height: 6px;
@@ -158,7 +129,6 @@
         cursor: pointer;
         overflow: hidden;
       }
-
       .progress-fill {
         height: 100%;
         width: 0%;
@@ -166,7 +136,6 @@
         border-radius: 3px;
         transition: width 0.15s linear;
       }
-
       .time-row {
         display: flex;
         justify-content: space-between;
@@ -175,13 +144,11 @@
         margin-top: 6px;
         font-variant-numeric: tabular-nums;
       }
-
       .controls {
         display: flex;
         align-items: center;
         gap: 20px;
       }
-
       .btn-play {
         width: 64px;
         height: 64px;
@@ -195,47 +162,30 @@
         box-shadow: 0 8px 24px var(--amber-glow);
         transition: transform 0.2s, box-shadow 0.2s;
       }
-
       .btn-play:hover {
         transform: scale(1.06);
         box-shadow: 0 12px 32px var(--amber-glow);
       }
-
       .btn-play:active { transform: scale(0.94); }
-
-      .btn-play svg {
-        fill: #1c1917;
-        width: 26px;
-        height: 26px;
-      }
-
-      .btn-play.disabled {
-        opacity: 0.3;
-        pointer-events: none;
-      }
-
+      .btn-play svg { fill: #1c1917; width: 26px; height: 26px; }
+      .btn-play.disabled { opacity: 0.3; pointer-events: none; }
       .status-msg {
         text-align: center;
         font-size: 13px;
         color: var(--text-dim);
         margin-top: 16px;
       }
-
       .status-msg.error { color: #ef4444; }
     </style>
   </head>
-
   <body>
     <div class="player" id="player">
       <div class="viz" id="viz"></div>
-
       <div class="info">
-        <h1 id="title">Generating music...</h1>
+        <h1 id="title">Loading...</h1>
         <span class="badge">LYRIA 3 CLIP &middot; 30s</span>
       </div>
-
       <div class="lyrics-box" id="lyrics"></div>
-
       <div class="progress-wrap">
         <div class="progress-track" id="progress-track">
           <div class="progress-fill" id="progress-fill"></div>
@@ -245,22 +195,18 @@
           <span id="tot-time">0:30</span>
         </div>
       </div>
-
       <div class="controls">
         <button class="btn-play disabled" id="btn-play">
           <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" id="icon-path" /></svg>
         </button>
       </div>
-
-      <div class="status-msg" id="status">Calling Lyria 3 API...</div>
+      <div class="status-msg" id="status">Loading audio...</div>
     </div>
-
     <audio id="audio"></audio>
-
     <script>
       var params = new URLSearchParams(window.location.search);
       var promptText = params.get("prompt") || "Generated Clip";
-      var apiKey = decodeURIComponent(window.location.hash.substring(1));
+      var lyricsText = params.get("lyrics") || "";
 
       var player = document.getElementById("player");
       var titleEl = document.getElementById("title");
@@ -275,12 +221,10 @@
       var totTimeEl = document.getElementById("tot-time");
       var vizContainer = document.getElementById("viz");
 
-      var BAR_COUNT = 40;
-      for (var i = 0; i < BAR_COUNT; i++) {
+      for (var i = 0; i < 40; i++) {
         var bar = document.createElement("div");
         bar.className = "viz-bar";
-        var h = 12 + Math.random() * 52;
-        bar.style.setProperty("--bar-h", h + "px");
+        bar.style.setProperty("--bar-h", (12 + Math.random() * 52) + "px");
         bar.style.animationDelay = (Math.random() * 0.6).toFixed(2) + "s";
         bar.style.animationDuration = (0.5 + Math.random() * 0.5).toFixed(2) + "s";
         vizContainer.appendChild(bar);
@@ -290,90 +234,27 @@
         ? promptText.substring(0, 77) + "..."
         : promptText;
 
-      player.classList.add("loading");
-
-      generateMusic();
-
-      async function generateMusic() {
-        if (!apiKey) {
-          showError("Missing API key.");
-          return;
-        }
-
-        try {
-          statusEl.textContent = "Generating your clip... (15-30 seconds)";
-
-          var url =
-            "https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent?key=" +
-            encodeURIComponent(apiKey);
-
-          var requestBody = {
-            contents: [{ parts: [{ text: promptText }] }],
-            generationConfig: {
-              responseModalities: ["AUDIO", "TEXT"],
-            },
-          };
-
-          var response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody),
-          });
-
-          if (!response.ok) {
-            var errBody = await response.text();
-            var msg = "API error " + response.status;
-            try {
-              var errJson = JSON.parse(errBody);
-              if (errJson.error && errJson.error.message) msg = errJson.error.message;
-            } catch (_) {}
-            throw new Error(msg);
-          }
-
-          var result = await response.json();
-
-          if (!result.candidates || result.candidates.length === 0) {
-            throw new Error("No response. Prompt may have been filtered by safety checks.");
-          }
-
-          var lyrics = "";
-          var audioBase64 = "";
-          var audioMime = "audio/mp3";
-
-          for (var j = 0; j < result.candidates[0].content.parts.length; j++) {
-            var part = result.candidates[0].content.parts[j];
-            if (part.text) {
-              lyrics += part.text + "\n";
-            } else if (part.inlineData) {
-              audioBase64 = part.inlineData.data;
-              audioMime = part.inlineData.mimeType || "audio/mp3";
-            }
-          }
-
-          if (!audioBase64) {
-            throw new Error("No audio generated. Try a different prompt.");
-          }
-
-          audio.src = "data:" + audioMime + ";base64," + audioBase64;
-
-          if (lyrics.trim()) {
-            lyricsEl.textContent = lyrics.trim();
-          }
-
-          player.classList.remove("loading");
-          playBtn.classList.remove("disabled");
-          statusEl.textContent = "Ready — tap play to listen";
-
-        } catch (e) {
-          showError(e.message);
-        }
+      if (lyricsText) {
+        lyricsEl.textContent = lyricsText;
       }
 
-      function showError(msg) {
-        player.classList.remove("loading");
-        statusEl.textContent = msg;
+      // Read audio from URL hash: format is MIME_TYPE|BASE64_AUDIO_DATA
+      var rawHash = window.location.hash.substring(1);
+      if (rawHash) {
+        var pipeIdx = rawHash.indexOf("|");
+        if (pipeIdx > 0) {
+          var mime = decodeURIComponent(rawHash.substring(0, pipeIdx));
+          var b64 = rawHash.substring(pipeIdx + 1);
+          audio.src = "data:" + mime + ";base64," + b64;
+          playBtn.classList.remove("disabled");
+          statusEl.textContent = "Ready \u2014 tap play to listen";
+        } else {
+          statusEl.textContent = "Audio data format error.";
+          statusEl.classList.add("error");
+        }
+      } else {
+        statusEl.textContent = "No audio data received.";
         statusEl.classList.add("error");
-        titleEl.textContent = "Generation Failed";
       }
 
       playBtn.addEventListener("click", function () {
@@ -383,7 +264,7 @@
             iconPath.setAttribute("d", "M6 19h4V5H6v14zm8-14v14h4V5h-4z");
             statusEl.textContent = "Now Playing";
             statusEl.classList.remove("error");
-          }).catch(function (e) {
+          }).catch(function () {
             statusEl.textContent = "Playback error";
             statusEl.classList.add("error");
           });
@@ -397,8 +278,7 @@
 
       audio.addEventListener("timeupdate", function () {
         if (!audio.duration) return;
-        var pct = (audio.currentTime / audio.duration) * 100;
-        progressFill.style.width = pct + "%";
+        progressFill.style.width = ((audio.currentTime / audio.duration) * 100) + "%";
         curTimeEl.textContent = fmt(audio.currentTime);
       });
 
@@ -409,8 +289,7 @@
       progressTrack.addEventListener("click", function (e) {
         if (!audio.duration) return;
         var rect = progressTrack.getBoundingClientRect();
-        var pct = (e.clientX - rect.left) / rect.width;
-        audio.currentTime = pct * audio.duration;
+        audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
       });
 
       audio.addEventListener("ended", function () {

@@ -5,29 +5,101 @@
       window["ai_edge_gallery_get_result"] = async (data, secret) => {
         try {
           const jsonData = JSON.parse(data);
-          const prompt = jsonData.prompt || "A cheerful acoustic folk song with guitar";
+          const prompt =
+            jsonData.prompt || "A cheerful acoustic folk song with guitar";
 
           const apiKey = secret || "";
           if (!apiKey) {
             return JSON.stringify({
-              error: "Missing Gemini API key. Please set your API key in the skill settings.",
+              error:
+                "Missing Gemini API key. Please set your API key in the skill settings.",
             });
           }
 
+          const url =
+            "https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent?key=" +
+            encodeURIComponent(apiKey);
+
+          const requestBody = {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseModalities: ["AUDIO", "TEXT"],
+            },
+          };
+
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          });
+
+          if (!response.ok) {
+            const errBody = await response.text();
+            let msg = "API error " + response.status;
+            try {
+              const errJson = JSON.parse(errBody);
+              if (errJson.error && errJson.error.message)
+                msg = errJson.error.message;
+            } catch (_) {}
+            throw new Error(msg);
+          }
+
+          const result = await response.json();
+
+          if (!result.candidates || result.candidates.length === 0) {
+            throw new Error(
+              "No response from Lyria 3. The prompt may have been filtered by safety checks."
+            );
+          }
+
+          let lyrics = "";
+          let audioBase64 = "";
+          let audioMime = "audio/mp3";
+
+          for (const part of result.candidates[0].content.parts) {
+            if (part.text) {
+              lyrics += part.text + "\n";
+            } else if (part.inlineData) {
+              audioBase64 = part.inlineData.data;
+              audioMime = part.inlineData.mimeType || "audio/mp3";
+            }
+          }
+
+          if (!audioBase64) {
+            throw new Error(
+              "No audio was generated. Try rephrasing your prompt."
+            );
+          }
+
           const params = new URLSearchParams();
-          params.set("prompt", prompt);
+          params.set("prompt", prompt.substring(0, 120));
+          if (lyrics.trim()) {
+            params.set("lyrics", lyrics.trim().substring(0, 600));
+          }
           params.set("t", Date.now().toString());
+
+          // Pass audio data via URL hash so the webview can read it directly.
+          // Hash is never sent to the server — it stays client-side.
+          const hashData =
+            encodeURIComponent(audioMime) + "|" + audioBase64;
+
+          const resultText = lyrics.trim()
+            ? "Music generated! Here are the lyrics:\n" + lyrics.trim()
+            : "Music clip generated! Tap the preview card to listen.";
 
           return JSON.stringify({
             webview: {
-              url: "webview.html?" + params.toString() + "#" + encodeURIComponent(apiKey),
+              url:
+                "webview.html?" + params.toString() + "#" + hashData,
               aspectRatio: 1.5,
             },
-            result: "Generating your music clip... Tap the preview card to see progress and listen when ready.",
+            result: resultText,
           });
         } catch (e) {
           console.error(e);
-          return JSON.stringify({ error: "Failed to start music generation: " + e.message });
+          return JSON.stringify({
+            error: "Music generation failed: " + e.message,
+          });
         }
       };
     </script>
@@ -49,7 +121,10 @@
         value="A cheerful acoustic folk song with guitar and harmonica"
         style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box"
       />
-      <button id="run-test" style="padding: 10px 20px; font-size: 16px; cursor: pointer">
+      <button
+        id="run-test"
+        style="padding: 10px 20px; font-size: 16px; cursor: pointer"
+      >
         Generate
       </button>
       <pre
@@ -69,9 +144,9 @@
       document.getElementById("run-test").addEventListener("click", async () => {
         const output = document.getElementById("test-output");
         const prompt = document.getElementById("test-prompt").value;
-        output.textContent = "Building webview URL...";
+        output.textContent = "Generating music... (this may take 15-30 seconds)";
         try {
-          const payload = JSON.stringify({ prompt });
+          const payload = JSON.stringify({ prompt: prompt });
           const result = await window["ai_edge_gallery_get_result"](payload);
           output.textContent = result;
         } catch (e) {
