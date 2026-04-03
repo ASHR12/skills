@@ -4,7 +4,7 @@ description: Generate a 30-second music clip from a text description or from an 
 metadata:
   require-secret: true
   require-secret-description: Enter your Gemini API key. Get one at https://aistudio.google.com/apikey
-  homepage: https://github.com/google-ai-edge/gallery/tree/main/skills/featured/lyria-music
+  homepage: https://github.com/ASHR12/skills/tree/master/lyria-music
 ---
 
 # Lyria Music Generator
@@ -13,20 +13,22 @@ Generate 30-second high-fidelity music clips powered by Google Lyria 3.
 
 ## Examples
 
-* "Create a cheerful acoustic folk song with guitar and harmonica"
-* "Generate a dark ambient electronic track at 90 BPM"
-* "Make a lo-fi hip hop beat, instrumental only"
-* "Compose music that matches this image" (with an image)
-* "Create a dreamy piano piece inspired by this sunset photo" (with image + text)
+- "Create a cheerful acoustic folk song with guitar and harmonica"
+- "Generate a dark ambient electronic track at 90 BPM"
+- "Make a lo-fi hip hop beat, instrumental only"
+- "Compose music that matches this image" (with an image)
+- "Create a dreamy piano piece inspired by this sunset photo" (with image + text)
 
 ## Instructions
 
 Call the `run_js` tool with the following exact parameters:
+
 - data: A JSON string with the following field:
   - prompt: String. Required. A detailed music generation prompt.
 
 **Constructing the prompt:**
 Build the most detailed prompt you can from the user's request. Include any of these that fit:
+
 - **Genre**: e.g., "lo-fi hip hop", "cinematic orchestral", "indie pop", "jazz fusion"
 - **Instruments**: e.g., "acoustic guitar", "Fender Rhodes piano", "TR-808 drum machine"
 - **Mood**: e.g., "nostalgic", "upbeat", "melancholic", "ethereal", "aggressive"
