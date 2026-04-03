@@ -14,85 +14,20 @@
             });
           }
 
-          const url =
-            "https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent?key=" +
-            encodeURIComponent(apiKey);
-
-          const requestBody = {
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              responseModalities: ["AUDIO", "TEXT"],
-            },
-          };
-
-          const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody),
-          });
-
-          if (!response.ok) {
-            const errBody = await response.text();
-            let msg = "API error " + response.status;
-            try {
-              const errJson = JSON.parse(errBody);
-              if (errJson.error && errJson.error.message) msg = errJson.error.message;
-            } catch (_) {}
-            throw new Error(msg);
-          }
-
-          const result = await response.json();
-
-          if (!result.candidates || result.candidates.length === 0) {
-            throw new Error("No response from Lyria 3. The prompt may have been filtered by safety checks.");
-          }
-
-          let lyrics = "";
-          let audioBase64 = "";
-          let audioMime = "audio/mp3";
-
-          for (const part of result.candidates[0].content.parts) {
-            if (part.text) {
-              lyrics += part.text + "\n";
-            } else if (part.inlineData) {
-              audioBase64 = part.inlineData.data;
-              audioMime = part.inlineData.mimeType || "audio/mp3";
-            }
-          }
-
-          if (!audioBase64) {
-            throw new Error("No audio was generated. Try rephrasing your prompt.");
-          }
-
-          try {
-            localStorage.setItem("lyria_audio", audioBase64);
-            localStorage.setItem("lyria_mime", audioMime);
-            localStorage.setItem("lyria_lyrics", lyrics.trim());
-          } catch (storageErr) {
-            console.warn("localStorage write failed, falling back to URL param", storageErr);
-          }
-
           const params = new URLSearchParams();
-          params.set("prompt", prompt.substring(0, 120));
+          params.set("prompt", prompt);
           params.set("t", Date.now().toString());
-          if (lyrics.trim()) {
-            params.set("lyrics", lyrics.trim().substring(0, 600));
-          }
-
-          const resultText = lyrics.trim()
-            ? "Music generated! Here are the lyrics:\n" + lyrics.trim()
-            : "Music clip generated! Tap the preview card to listen.";
 
           return JSON.stringify({
             webview: {
-              url: "webview.html?" + params.toString(),
+              url: "webview.html?" + params.toString() + "#" + encodeURIComponent(apiKey),
               aspectRatio: 1.5,
             },
-            result: resultText,
+            result: "Generating your music clip... Tap the preview card to see progress and listen when ready.",
           });
         } catch (e) {
           console.error(e);
-          return JSON.stringify({ error: "Music generation failed: " + e.message });
+          return JSON.stringify({ error: "Failed to start music generation: " + e.message });
         }
       };
     </script>
@@ -134,7 +69,7 @@
       document.getElementById("run-test").addEventListener("click", async () => {
         const output = document.getElementById("test-output");
         const prompt = document.getElementById("test-prompt").value;
-        output.textContent = "Generating music... (this may take 15-30 seconds)";
+        output.textContent = "Building webview URL...";
         try {
           const payload = JSON.stringify({ prompt });
           const result = await window["ai_edge_gallery_get_result"](payload);

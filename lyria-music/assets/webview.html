@@ -46,7 +46,8 @@
         border: 1px solid var(--border);
         border-radius: 28px;
         padding: 32px 28px 28px;
-        box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6),
+          inset 0 1px 0 rgba(255, 255, 255, 0.05);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -54,14 +55,8 @@
       }
 
       @keyframes slideUp {
-        from {
-          opacity: 0;
-          transform: translateY(30px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
       }
 
       .viz {
@@ -76,9 +71,7 @@
         transition: opacity 0.4s;
       }
 
-      .playing .viz {
-        opacity: 1;
-      }
+      .playing .viz { opacity: 1; }
 
       .viz-bar {
         width: 4px;
@@ -93,14 +86,17 @@
       }
 
       @keyframes vizBounce {
-        0% {
-          height: 8px;
-          opacity: 0.4;
-        }
-        100% {
-          height: var(--bar-h, 60px);
-          opacity: 1;
-        }
+        0% { height: 8px; opacity: 0.4; }
+        100% { height: var(--bar-h, 60px); opacity: 1; }
+      }
+
+      .loading .viz-bar {
+        animation: loadPulse 1.4s ease-in-out infinite;
+      }
+
+      @keyframes loadPulse {
+        0%, 100% { height: 8px; opacity: 0.3; }
+        50% { height: var(--bar-h, 40px); opacity: 0.7; }
       }
 
       .info {
@@ -147,9 +143,7 @@
         scrollbar-color: var(--amber) transparent;
       }
 
-      .lyrics-box:empty {
-        display: none;
-      }
+      .lyrics-box:empty { display: none; }
 
       .progress-wrap {
         width: 100%;
@@ -207,14 +201,17 @@
         box-shadow: 0 12px 32px var(--amber-glow);
       }
 
-      .btn-play:active {
-        transform: scale(0.94);
-      }
+      .btn-play:active { transform: scale(0.94); }
 
       .btn-play svg {
         fill: #1c1917;
         width: 26px;
         height: 26px;
+      }
+
+      .btn-play.disabled {
+        opacity: 0.3;
+        pointer-events: none;
       }
 
       .status-msg {
@@ -224,21 +221,7 @@
         margin-top: 16px;
       }
 
-      .error-state {
-        text-align: center;
-        padding: 40px 20px;
-      }
-
-      .error-state h2 {
-        font-size: 18px;
-        margin-bottom: 8px;
-        color: #ef4444;
-      }
-
-      .error-state p {
-        font-size: 14px;
-        color: var(--text-dim);
-      }
+      .status-msg.error { color: #ef4444; }
     </style>
   </head>
 
@@ -247,7 +230,7 @@
       <div class="viz" id="viz"></div>
 
       <div class="info">
-        <h1 id="title">Loading...</h1>
+        <h1 id="title">Generating music...</h1>
         <span class="badge">LYRIA 3 CLIP &middot; 30s</span>
       </div>
 
@@ -264,90 +247,146 @@
       </div>
 
       <div class="controls">
-        <button class="btn-play" id="btn-play">
+        <button class="btn-play disabled" id="btn-play">
           <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" id="icon-path" /></svg>
         </button>
       </div>
 
-      <div class="status-msg" id="status">Tap play to listen</div>
+      <div class="status-msg" id="status">Calling Lyria 3 API...</div>
     </div>
 
     <audio id="audio"></audio>
 
     <script>
-      const params = new URLSearchParams(window.location.search);
-      const promptText = params.get("prompt") || "Generated Clip";
-      const lyricsText = params.get("lyrics") || "";
+      var params = new URLSearchParams(window.location.search);
+      var promptText = params.get("prompt") || "Generated Clip";
+      var apiKey = decodeURIComponent(window.location.hash.substring(1));
 
-      const player = document.getElementById("player");
-      const titleEl = document.getElementById("title");
-      const lyricsEl = document.getElementById("lyrics");
-      const statusEl = document.getElementById("status");
-      const playBtn = document.getElementById("btn-play");
-      const iconPath = document.getElementById("icon-path");
-      const audio = document.getElementById("audio");
-      const progressTrack = document.getElementById("progress-track");
-      const progressFill = document.getElementById("progress-fill");
-      const curTimeEl = document.getElementById("cur-time");
-      const totTimeEl = document.getElementById("tot-time");
-      const vizContainer = document.getElementById("viz");
+      var player = document.getElementById("player");
+      var titleEl = document.getElementById("title");
+      var lyricsEl = document.getElementById("lyrics");
+      var statusEl = document.getElementById("status");
+      var playBtn = document.getElementById("btn-play");
+      var iconPath = document.getElementById("icon-path");
+      var audio = document.getElementById("audio");
+      var progressTrack = document.getElementById("progress-track");
+      var progressFill = document.getElementById("progress-fill");
+      var curTimeEl = document.getElementById("cur-time");
+      var totTimeEl = document.getElementById("tot-time");
+      var vizContainer = document.getElementById("viz");
 
-      // Build waveform bars
-      const BAR_COUNT = 40;
-      for (let i = 0; i < BAR_COUNT; i++) {
-        const bar = document.createElement("div");
+      var BAR_COUNT = 40;
+      for (var i = 0; i < BAR_COUNT; i++) {
+        var bar = document.createElement("div");
         bar.className = "viz-bar";
-        const h = 12 + Math.random() * 52;
+        var h = 12 + Math.random() * 52;
         bar.style.setProperty("--bar-h", h + "px");
         bar.style.animationDelay = (Math.random() * 0.6).toFixed(2) + "s";
         bar.style.animationDuration = (0.5 + Math.random() * 0.5).toFixed(2) + "s";
         vizContainer.appendChild(bar);
       }
 
-      titleEl.textContent = promptText;
+      titleEl.textContent = promptText.length > 80
+        ? promptText.substring(0, 77) + "..."
+        : promptText;
 
-      // Show lyrics from URL param or localStorage
-      const storedLyrics = tryLocalStorage("lyria_lyrics") || "";
-      const displayLyrics = lyricsText || storedLyrics;
-      if (displayLyrics) {
-        lyricsEl.textContent = displayLyrics;
-      }
+      player.classList.add("loading");
 
-      // Load audio from localStorage
-      const audioBase64 = tryLocalStorage("lyria_audio");
-      const audioMime = tryLocalStorage("lyria_mime") || "audio/mp3";
+      generateMusic();
 
-      if (audioBase64) {
-        audio.src = "data:" + audioMime + ";base64," + audioBase64;
-        statusEl.textContent = "Tap play to listen";
+      async function generateMusic() {
+        if (!apiKey) {
+          showError("Missing API key.");
+          return;
+        }
 
-        // Clean up localStorage after loading
         try {
-          localStorage.removeItem("lyria_audio");
-          localStorage.removeItem("lyria_mime");
-          localStorage.removeItem("lyria_lyrics");
-        } catch (_) {}
-      } else {
-        titleEl.textContent = "Audio Unavailable";
-        statusEl.textContent = "Could not load audio data. Try generating again.";
-        playBtn.style.opacity = "0.3";
-        playBtn.style.pointerEvents = "none";
+          statusEl.textContent = "Generating your clip... (15-30 seconds)";
+
+          var url =
+            "https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent?key=" +
+            encodeURIComponent(apiKey);
+
+          var requestBody = {
+            contents: [{ parts: [{ text: promptText }] }],
+            generationConfig: {
+              responseModalities: ["AUDIO", "TEXT"],
+            },
+          };
+
+          var response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          });
+
+          if (!response.ok) {
+            var errBody = await response.text();
+            var msg = "API error " + response.status;
+            try {
+              var errJson = JSON.parse(errBody);
+              if (errJson.error && errJson.error.message) msg = errJson.error.message;
+            } catch (_) {}
+            throw new Error(msg);
+          }
+
+          var result = await response.json();
+
+          if (!result.candidates || result.candidates.length === 0) {
+            throw new Error("No response. Prompt may have been filtered by safety checks.");
+          }
+
+          var lyrics = "";
+          var audioBase64 = "";
+          var audioMime = "audio/mp3";
+
+          for (var j = 0; j < result.candidates[0].content.parts.length; j++) {
+            var part = result.candidates[0].content.parts[j];
+            if (part.text) {
+              lyrics += part.text + "\n";
+            } else if (part.inlineData) {
+              audioBase64 = part.inlineData.data;
+              audioMime = part.inlineData.mimeType || "audio/mp3";
+            }
+          }
+
+          if (!audioBase64) {
+            throw new Error("No audio generated. Try a different prompt.");
+          }
+
+          audio.src = "data:" + audioMime + ";base64," + audioBase64;
+
+          if (lyrics.trim()) {
+            lyricsEl.textContent = lyrics.trim();
+          }
+
+          player.classList.remove("loading");
+          playBtn.classList.remove("disabled");
+          statusEl.textContent = "Ready — tap play to listen";
+
+        } catch (e) {
+          showError(e.message);
+        }
       }
 
-      // Play / Pause
-      playBtn.addEventListener("click", () => {
+      function showError(msg) {
+        player.classList.remove("loading");
+        statusEl.textContent = msg;
+        statusEl.classList.add("error");
+        titleEl.textContent = "Generation Failed";
+      }
+
+      playBtn.addEventListener("click", function () {
         if (audio.paused) {
-          audio
-            .play()
-            .then(() => {
-              player.classList.add("playing");
-              iconPath.setAttribute("d", "M6 19h4V5H6v14zm8-14v14h4V5h-4z");
-              statusEl.textContent = "Now Playing";
-            })
-            .catch((e) => {
-              console.error("Playback failed", e);
-              statusEl.textContent = "Playback error";
-            });
+          audio.play().then(function () {
+            player.classList.add("playing");
+            iconPath.setAttribute("d", "M6 19h4V5H6v14zm8-14v14h4V5h-4z");
+            statusEl.textContent = "Now Playing";
+            statusEl.classList.remove("error");
+          }).catch(function (e) {
+            statusEl.textContent = "Playback error";
+            statusEl.classList.add("error");
+          });
         } else {
           audio.pause();
           player.classList.remove("playing");
@@ -356,28 +395,25 @@
         }
       });
 
-      // Progress
-      audio.addEventListener("timeupdate", () => {
+      audio.addEventListener("timeupdate", function () {
         if (!audio.duration) return;
-        const pct = (audio.currentTime / audio.duration) * 100;
+        var pct = (audio.currentTime / audio.duration) * 100;
         progressFill.style.width = pct + "%";
         curTimeEl.textContent = fmt(audio.currentTime);
       });
 
-      audio.addEventListener("loadedmetadata", () => {
+      audio.addEventListener("loadedmetadata", function () {
         totTimeEl.textContent = fmt(audio.duration);
       });
 
-      // Seek
-      progressTrack.addEventListener("click", (e) => {
+      progressTrack.addEventListener("click", function (e) {
         if (!audio.duration) return;
-        const rect = progressTrack.getBoundingClientRect();
-        const pct = (e.clientX - rect.left) / rect.width;
+        var rect = progressTrack.getBoundingClientRect();
+        var pct = (e.clientX - rect.left) / rect.width;
         audio.currentTime = pct * audio.duration;
       });
 
-      // Ended
-      audio.addEventListener("ended", () => {
+      audio.addEventListener("ended", function () {
         player.classList.remove("playing");
         iconPath.setAttribute("d", "M8 5v14l11-7z");
         statusEl.textContent = "Finished";
@@ -386,17 +422,9 @@
 
       function fmt(sec) {
         if (isNaN(sec)) return "0:00";
-        const m = Math.floor(sec / 60);
-        const s = Math.floor(sec % 60);
+        var m = Math.floor(sec / 60);
+        var s = Math.floor(sec % 60);
         return m + ":" + (s < 10 ? "0" : "") + s;
-      }
-
-      function tryLocalStorage(key) {
-        try {
-          return localStorage.getItem(key);
-        } catch (_) {
-          return null;
-        }
       }
     </script>
   </body>
