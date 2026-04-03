@@ -285,7 +285,7 @@
         if (!audioDataUri) return;
         var a = document.createElement("a");
         a.href = audioDataUri;
-        a.download = "lyria-clip.mp3";
+        a.download = "lyria-clip-" + Date.now() + ".mp3";
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
